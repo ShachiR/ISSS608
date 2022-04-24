@@ -29,10 +29,6 @@ Links to the dataset:
 
 ## Step-by-step Data Visualisation
 
-### Sketch of proposed design
-
-
-
 ### Installing and launching R packages
 
 Packages, namely `tidyverse` and `ggplot2` are required for this makeover exercise. This code chunk installs the required packages and loads them onto RStudio environment.
@@ -130,6 +126,13 @@ head(participants_data_mod)
 ```{r}
 summary(participants_data_mod)
 ```
+
+### Group by
+```{r}
+participants_data_new <- summarise_at(group_by(participants_data_mod,age_modified,educationLevel),vars(joviality),funs(mean(.,na.rm=TRUE)))
+
+head(participants_data_new)
+```
 ### Sorting Data
 As shown above, the values of the tibble data frame is sorted according to the age. 
 
@@ -197,7 +200,7 @@ ggplot(data=participants_data_mod,
   )+
   facet_wrap(~age_modified)
 ```
-* We can observe that on an average the people who are in high school or college are the ones who are the happiest of all in all age groups.
+
 
 ```{r}
 ggplot(data=participants_data_mod, 
@@ -217,4 +220,11 @@ ggplot(data=participants_data_mod,
   facet_wrap(~age_modified)
 
 ```
-```
+
+## Conclusion
+
+* We can observe that on an average the people who are in high school or college and graduates are the ones who are the happiest of all in all age groups.
+
+* the joviality value changes across different age groups over different interests.
+
+
