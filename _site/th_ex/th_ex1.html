@@ -1625,7 +1625,6 @@ educationLevel  interestGroup      joviality
                     3rd Qu.:0.746819                     
                     Max.   :0.999234                     </code></pre>
 </div>
-<h3 id="group-by">Group by</h3>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class="va">participants_data_new</span> <span class="op">&lt;-</span> <span class="fu">summarise_at</span><span class="op">(</span><span class="fu">group_by</span><span class="op">(</span><span class="va">participants_data_mod</span>,<span class="va">age_modified</span>,<span class="va">educationLevel</span><span class="op">)</span>,<span class="fu">vars</span><span class="op">(</span><span class="va">joviality</span><span class="op">)</span>,<span class="fu">funs</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html">mean</a></span><span class="op">(</span><span class="va">.</span>,na.rm<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>

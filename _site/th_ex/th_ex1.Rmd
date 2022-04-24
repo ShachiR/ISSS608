@@ -126,8 +126,6 @@ head(participants_data_mod)
 ```{r}
 summary(participants_data_mod)
 ```
-
-### Group by
 ```{r}
 participants_data_new <- summarise_at(group_by(participants_data_mod,age_modified,educationLevel),vars(joviality),funs(mean(.,na.rm=TRUE)))
 

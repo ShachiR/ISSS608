@@ -1,7 +1,7 @@
 ---
 title: "Visual Analytics Exercises"
-description: |
-  Welcome to the website. I hope you enjoy it!
+description: The website contains exercises posted for Visual Analytics and Applications
+  Course.
 site: distill::distill_website
 ---
 
