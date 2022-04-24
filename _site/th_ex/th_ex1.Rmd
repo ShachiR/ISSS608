@@ -4,7 +4,7 @@ description: |
   Visual insights reveal the demographic of the city of Engagement, Ohio USA for vast 2022 challenge.
 author:
   - name: Shachi Anirudha Raodeo 
-    url: 
+    url: https://github.com/ShachiR/ISSS608
     affiliation: School of Computing and Information Systems
 date: "`r Sys.Date()`"
 output: distill::distill_article
