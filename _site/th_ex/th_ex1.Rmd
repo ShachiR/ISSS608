@@ -1,0 +1,220 @@
+---
+title: "Take Home Exercise-1"
+description: |
+  Visual insights reveal the demographic of the city of Engagement, Ohio USA for vast 2022 challenge.
+author:
+  - name: Shachi Anirudha Raodeo 
+    url: 
+    affiliation: School of Computing and Information Systems
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+```
+
+## The Task
+This take-home exercise aims to reveal the demographic of the city of Engagement, Ohio USA by using visualization techniques in R.
+
+The provided data can be used to get more insights into the mindset of the people in Ohio, USA. 
+The report aims to answering questions such as the reason for unhappiness in the city of Ohio, the average household size in Ohio, the relation between age, education level and joviality and the impact of children living in household at a person's happiness.
+
+Links to the dataset:
+
+[`Download Superstore-2021.xls`](https://vast-challenge.github.io/2022/)
+
+## Step-by-step Data Visualisation
+
+### Sketch of proposed design
+
+
+
+### Installing and launching R packages
+
+Packages, namely `tidyverse` and `ggplot2` are required for this makeover exercise. This code chunk installs the required packages and loads them onto RStudio environment.
+
+
+```{r}
+packages = c('tidyverse','ggplot2')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Data Preparation
+
+### Data Source
+The dataset used in this exercise is Participants.csv, published by the IEEE for [VAST challenge 2022] (https://vast-challenge.github.io/2022/) 
+
+### Importing the dataset
+
+The code chunk below imports *Participants.scv* from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *participants_data*
+
+
+```{r}
+participants_data <- read_csv("data/Participants.csv")
+str(participants_data)
+```
+
+### Data Description
+
+Contains information about the residents Ohio, USA that have agreed to participate in
+this study.
+
+* *participantId (integer)*: unique ID assigned to each participant
+* *householdSize (integer)*: the number of people in the participant’s household
+* *haveKids (boolean)*: whether there are children living in the participant’s household
+* *age (integer)*: participant’s age in years at the start of the study
+* *educationLevel (string factor)*: the participant’s education level, one of:
+{"Low", "HighSchoolOrCollege", "Bachelors", "Graduate"}
+* *interestGroup (char)*: a char representing the participant’s stated primary interest
+group, one of {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+* *joviality (float)*: a value ranging from [0,1] indicating the participant’s overall
+happiness level at the start of the study.
+
+### Missing value check
+
+Before we proceed with data visualization we check if the dataset has any null values using the code below.
+
+```{r}
+apply(participants_data, 2, function(x) any(is.na(x)))
+
+```
+
+Since there are no null values observed we proceed with our next step.
+
+## Data Wrangling
+
+Display the various age groups present in the dataset using the code below to get an overview of the target age groups in the dataset
+
+```{r}
+participants_data$age <- as.factor(participants_data$age)
+levels(participants_data$age)
+
+```
+
+### Grouping age into categories
+
+Since the number of age groups are too many to derive a generalized conclusion we group the ages into five categories - less than or equal to 20, in 20's, 30's, 40's and the ones greater than 50 .
+
+
+```{r}
+
+one <- c("18", "19", "20")
+two <- c("21", "22", "23", "24", "25", "26", "27", "28", "29", "30" )
+three <- c("31", "32", "33", "34", "35", "36", "37", "38", "39", "40")
+four <- c( "41", "42", "43", "44", "45", "46", "47", "48", "49", "50")
+five <-  c( "51", "52", "53", "54", "55", "56", "57", "58", "59", "60")
+
+
+participants_data_mod <- participants_data %>%
+  mutate(age_modified = case_when(
+    age %in% one ~ "<=20",
+    age %in% two ~ "20's",
+    age %in% three ~ "30's",
+    age %in% four ~ "40's",
+    age %in% five ~ "50+")) %>%
+  select(-age)
+
+head(participants_data_mod)
+```
+### Data Summary
+
+```{r}
+summary(participants_data_mod)
+```
+### Sorting Data
+As shown above, the values of the tibble data frame is sorted according to the age. 
+
+```{r}
+participants_data_mod[order(participants_data_mod$age_modified), ]
+
+```
+## Data Visualization and Insights
+
+A histogram is used to check the shape of the data distribution. The below graph reveals that the range of distribution of Joviality is from 0 to 1. We also observe that in our test data of participants there are very few participants having value of joviality closer to 1.
+Here the function geom_histogram is used to plot the distribution of joviality since joviality is a continuous variable.
+
+```{r}
+
+ggplot(data=participants_data,
+aes(x = joviality)) +
+geom_histogram(bins=20,
+boundary = 50,
+color="black",
+fill="light blue") +
+coord_cartesian(xlim=c(0.01,1)) +
+labs(
+    title = "Distribution of Joviality",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0)
+  )
+
+```
+```{r}
+ggplot(data=participants_data_mod, 
+       aes(x=age_modified, fill = educationLevel)) +
+geom_bar()+
+labs(
+    title = "Distribution of Age for different household types",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0)
+  )
+
+```
+* from the above graph we can infer that the population consists of the lowest number of participants from the age group less than 20.
+It is also observed that from the group of participants the ones in their 20's are the most jovial.
+
+```{r}
+ggplot(data=participants_data_mod, 
+       aes(x= joviality, 
+           y= educationLevel, fill = haveKids)) +
+     geom_col() +
+  theme_classic()+
+ labs(
+    title = "Joviality Measure",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0)
+  )+
+  facet_wrap(~age_modified)
+```
+* We can observe that on an average the people who are in high school or college are the ones who are the happiest of all in all age groups.
+
+```{r}
+ggplot(data=participants_data_mod, 
+       aes(x= interestGroup, 
+           y= joviality)) +
+     geom_col() +
+  theme_classic()+
+ labs(
+    title = "Joviality Measure",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0)
+  )+
+  facet_wrap(~age_modified)
+
+```
+```
