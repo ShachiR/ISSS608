@@ -1,0 +1,473 @@
+---
+title: "Take Home Exercise-2"
+description: |
+  Visual insights reveal the demographic of the city of Engagement, Ohio USA for vast 2022 challenge.
+author:
+  - name: Shachi Anirudha Raodeo 
+    url: https://github.com/ShachiR/ISSS608
+    affiliation: School of Computing and Information Systems
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+```
+
+## The Task
+This take-home exercise aims to reveal the demographic of the city of Engagement, Ohio USA by using visualization techniques in R.
+
+The provided data can be used to get more insights into the mindset of the people in Ohio, USA. 
+The report aims to select one of the take home exercises prepared by another student and critic the submission in terms of clarity and aesthetics, and
+remake the original design by using the data visualisation principles and best practice you had learned in Lesson 1 and 2.
+
+Links to the dataset:
+
+[`Download Participants.csv`](https://vast-challenge.github.io/2022/)
+
+### Chosen assignment to Critic
+
+The assignment chosen to critic in take home exercise 2 is of student 
+[`DING YANMU`](https://dingyanmu.netlify.app/th_ex/th_ex1.html)
+
+
+## Step-by-step Data Visualisation
+
+### Installing and launching R packages
+
+Packages, namely `tidyverse` and `ggplot2` are required for this makeover exercise. This code chunk installs the required packages and loads them onto RStudio environment.
+
+
+```{r}
+packages = c('tidyverse','ggplot2','ggdist', 'ggridges',
+             'patchwork', 'ggthemes', 'hrbrthemes',
+             'ggrepel','ggforce',"HH","vcd",'scales','grid','gridExtra',
+             'formattable','readr')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Data Preparation
+
+### Data Source
+The dataset used in this exercise is Participants.csv, published by the IEEE for [VAST challenge 2022] (https://vast-challenge.github.io/2022/) 
+
+### Importing the dataset
+
+The code chunk below imports *Participants.scv*   from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *participants*
+
+The student assignment chosen to critic has only considered to use participants data to generate insights about the demographics of the city of Ohio. 
+
+
+```{r}
+participants <- read_csv("data/Participants.csv")
+summary(participants)
+data <- read_csv("data/Participants.csv")
+```
+
+
+### Missing value check
+
+Before we proceed with data visualization we check if the datasets chosen  have any null values using the code below.
+
+```{r}
+apply(participants, 2, function(x) any(is.na(x)))
+
+```
+
+Since there are no null values observed we proceed with our next step.
+
+
+## Data Wrangling and Data Visualization
+
+Display the various age groups present in the dataset using the code below to get an overview of the target age groups in the dataset.
+
+```{r}
+participants$age <- as.factor(participants$age)
+levels(participants$age)
+
+```
+
+### Distribution of age groups plot
+
+Since the number of age groups are too many to derive a generalized conclusion we group the ages into five categories - less than or equal to 20, in 20's, 30's, 40's and the ones greater than 50 .
+
+The method of segregating the age group into categories in the chosen student's assignment is quite complicated. The student creates a new data frame and recalculates each variable - age group, the count of the number of participants in each age group, the average happiness level in each age group, the number of participants that have kids and so on. This method is very time consuming and complicated and makes the code bulky.
+
+An easier way to split the age groups would be usint the *cut()* function in R.
+
+
+```{r}
+participants <- read_csv("data/Participants.csv")
+participants$agegroup <- cut(participants$age, breaks = c(17,20,25,30,35,40,45,50,55,60), 
+                             labels = c("18-20","20-25","26-30","31-35","36-40","41-45","45-50","50-55","55-60"))
+```
+
+#### Recreating the student's plot 
+
+Is a similar simple graph created by the student recreating using the above data.
+
+```{r}
+ggplot(data = participants,
+       aes(x = agegroup)) +
+  geom_bar() +
+  xlab("Age Group (years)") +
+  ylab("Count") +
+  geom_text(stat="count", 
+            aes(label = paste0(..count..), vjust=-1)) +
+  scale_y_continuous(limits = c(0, 200))+
+  ggtitle("Distribution of Age among participants")
+```
+#### Modified Plot
+
+above plot is modified considering the principles of data visualization. The above plot has simple X and Y axis, and is not so visually appealing. A line has been plotted along with the bar chart to make the differences in count wasily visible to the reader.
+
+```{r}
+p1<- ggplot(data = participants,
+       aes(x = agegroup)) +
+  geom_bar(alpha=0.5, fill = 4) +
+  xlab("Age (years)") +
+  ylab("Count of participants")  +
+  geom_line(aes(group=1),stat="count",colour="black")+
+  geom_point(aes(),stat="count",colour="red")+
+  geom_text(stat="count", 
+            aes(label=paste0(..count.., " (", round(..count../sum(..count..)*100,1), "%)"),hjust = 0.5,vjust=-2, size= "0.3")) +
+  theme_classic() +
+  theme(panel.grid.major.y = element_line(color = "light grey")) +
+  scale_y_continuous(breaks = seq(0, 180, by = 30), limits = c(0, 180))+
+  labs(
+    y= 'Count of \nParticipants',
+    title = "Distribution of Age among Participants",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "none"
+  )
+
+p1
+```
+#### Pareto Chart
+As shown above, the values of the tibble data frame is sorted according to the age.
+to plot a pareto chart first the count of age groups based on categories is calculated and sorted in decreasing order.
+
+
+```{r}
+participants_n <- participants %>%
+  group_by(`agegroup`) %>%
+  summarise('participants' = n()) %>%
+  ungroup()%>%
+  arrange(desc(participants))
+```
+
+*Calculate cumulative frequency and find the cumulative percentage*
+
+The distribution shown by the pareto chart is quite linear as the average number of participants in each age group is in the similar range except for the age group of 18-20 yrs which has very less number of participants.
+
+```{r}
+participants_freq <- participants_n %>%
+  mutate(freq = cumsum(participants)/sum(participants)*100)
+
+### graph 2 pareto chart
+coeff <- 0.7
+p2<- ggplot(data=participants_freq, 
+             aes(x = reorder(`agegroup`, -participants), y = participants)) +
+  geom_col(fill = "4",alpha= 0.5) +
+  labs(x = "Age Group", title = "Distribution of age among participants") +
+  geom_point(aes(y = `freq`/coeff), colour = 'red', size = 2) +
+  geom_line(aes(y = `freq`/coeff), colour = 'red', group = 1) +
+  scale_y_continuous(breaks = seq(0, 1000, 50), 
+                     sec.axis = sec_axis(~.*coeff, name = "Percentage(%)")) +
+  theme_bw()+
+  labs(
+    y= 'Count of \nParticipants',
+    title = "Distribution of Age among Participants",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "none",
+    axis.text.x = element_text(vjust = 0.5)
+  )
+
+
+p2
+```
+
+### Distribution participants who have kids v/s who donot
+
+#### Recreating the student's plot 
+
+The method used by the student to plot is quite similar to the one used to plot the age distribution plot.
+The method used to recreate the student's plot uses group by function to group the students with and without kids.
+
+```{r}
+library(dplyr)
+df_noKids = participants %>% group_by(agegroup,haveKids) %>%
+    filter(`haveKids` ==  FALSE)%>%
+    summarise(joviality = mean(joviality),
+              .groups = 'drop')
+
+df_Kids = participants %>% group_by(agegroup,haveKids) %>%
+  filter(`haveKids` ==  TRUE)%>%
+  summarise(joviality = mean(joviality),
+            .groups = 'drop')
+
+```
+
+The below graph is similar to the student's plot but an exact plot cannot be made because of the differences in calculation of the count used by the student and the method used in this take home exercise.
+Also the student whose assignment has been taken as refrence has plot participants who have kids with respect to the total participants plot,
+
+The blow plot is the plot of participants who have kids wrt. to the ones who donot live with kids at home.
+
+```{r}
+
+participants_group_kids = participants %>% group_by(agegroup,haveKids) %>%
+  summarise(joviality = mean(joviality), 
+            .groups = 'drop')
+
+ggplot(data= participants_group_kids, 
+       aes(x= agegroup, y= joviality, 
+           group= haveKids, 
+           color= factor(haveKids))) +
+  geom_line(size=2) +
+  geom_point(aes(x=agegroup, y=joviality), 
+             colour=alpha('red', 1), size=2) + 
+  scale_color_discrete(name= 'Have Kids') +
+  scale_y_continuous(breaks = seq(0, 0.8, by = 0.1), 
+                     limits = c(0, 0.8))+
+  geom_text(aes(y = joviality, label = paste(round(joviality,2)),
+                                hjust = 0.5,vjust=-1,size= "0.3"))+
+theme(legend.position = "none",
+    )
+```
+#### Modified plot
+Since the above plot does not comply with the principles of best visual plotting practices we use the lab() and the theme() functions to make the chart easy to read. We also plot percentage of joviality by using percent_format() function to convert the y axis labels to percent. We remove the text as it coincides with the plot. 
+
+```{r}
+p3<- ggplot(data= participants_group_kids, 
+       aes(x= agegroup, y= joviality, 
+           group= haveKids, 
+           color= factor(haveKids))) +
+  geom_line(size=2) +
+  scale_color_discrete(name= 'Have Kids') +
+  scale_y_continuous(labels = percent_format(),breaks = seq(0, 0.8, by = 0.2), 
+                     limits = c(0, 0.8))+
+  theme_bw()+
+  labs(
+    y= 'Joviality',
+    x= 'Age (Years)',
+    title = "Joviality among participants who have kids v/s who do not",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "none",
+    axis.text.x = element_text(vjust = 0.5)
+  )
+
+p3
+```
+#### Stacked bar to show the distribution of Kids among participants
+
+The below plot shows us a better understanding of joviality with age group among people who have kinds in their household to those who do not have kids in their household. People in age group 26-30 who do not have kids in their household seem to be the least happy. Generally people falling in the age group of 55-60 seem to be the happiest on an average and their happiness is not affected by kids in their household.
+
+```{r}
+participants_haveKids <- participants %>%
+  filter(`haveKids` ==  TRUE) %>%
+  mutate (joviality = -joviality)
+
+participants_noKids <-participants %>%
+  filter(`haveKids` ==  FALSE)
+
+ participants_Kids <- rbind(participants_haveKids, participants_noKids)
+
+p4<- ggplot(participants_Kids, aes (x = agegroup, y = joviality , fill = haveKids)) +
+  geom_bar(stat = "identity", alpha= 0.7) +
+  coord_flip()+
+  scale_y_continuous(labels = percent_format(),breaks = seq(-0.8, 0.8, by = 0.2), 
+                     limits = c(-0.8, 0.8))+
+  theme_bw()+
+  labs(
+    y= 'Joviality',
+    x= 'Age (Years)',
+    title = "Joviality among participants who have kids v/s who do not",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "none",
+    axis.text.x = element_text(vjust = 0.5)
+  )
+ 
+p4 
+```
+
+#### Stacked bar including interest groups
+
+```{r}
+p6<- ggplot(data=participants, 
+       aes(x= interestGroup, 
+           y= joviality, fill=educationLevel)) +
+     geom_col(alpha= 0.8) +
+  
+  theme_bw()+
+   facet_wrap(~agegroup)+
+    labs(
+    y= 'Joviality',
+    x= 'Age (Years)',
+    title = "Joviality among participants with varied interests",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    legend.position = "none",
+    axis.text.x = element_text(vjust = 0.5)
+  )
+p6
+```
+
+### Line plot - change in joviality by age group and education Level
+
+The below graph needs to have joviality in percentage as well as needs to not have x value ticks and the text on the y axis with better readability.
+
+from the plots we observe that on an average high school or college graduates and bachelors have a higher average joviality. It is lowest among the age group of 55- 60 who have low education and highest for the age group 36-40 with low education.
+
+
+```{r}
+participants_group_edu = participants %>% group_by(agegroup,educationLevel) %>%
+  summarise(joviality = mean(joviality), 
+            .groups = 'drop')
+
+ggplot(data= participants_group_edu, 
+       aes(x= agegroup, y= joviality, 
+           group= educationLevel, 
+           color=educationLevel)) +
+  geom_line(size =1.5) +
+  scale_color_discrete(name= 'Education Level') +
+  theme_bw()
+
+```
+
+```{r}
+participants_group_edu = participants %>% group_by(agegroup,educationLevel) %>%
+  summarise(joviality = mean(joviality), 
+            .groups = 'drop')
+
+p5<-ggplot(data= participants_group_edu, 
+       aes(x= agegroup, y= joviality, 
+           group= educationLevel, 
+           color=educationLevel)) +
+  geom_line(size =1.5) +
+  scale_color_discrete(name= 'Education') +
+  scale_y_continuous(labels = percent_format())+
+  theme_bw()+
+      labs(
+    y= 'Joviality',
+    x= 'Age (Years)',
+    title = "Joviality among participants with different education",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    axis.text.x = element_text(vjust = 0.5)
+  )
+
+p5
+```
+
+#### Range of Jova=iality for different age group
+
+The below graph shows us the range of joviality observed among participants who have different interest groups and educational levels.
+The participants from high school or college have a very narrow range of joviality which falls between 0.3 to 0.7 and the participants with low education levelhave a wide range of joviality right from the lowest to the highest over all its interest groups. Some interest groups have a normal distribution whereas the others have more than one peak value.
+
+```{r}
+participants_group_edu = participants %>% group_by(agegroup,educationLevel,interestGroup) %>%
+  summarise(joviality = mean(joviality), 
+            .groups = 'drop')
+
+p7<- ggplot(data= participants_group_edu, 
+       aes(x = joviality, y = interestGroup, fill = interestGroup)) +
+  geom_density_ridges(geom = "density_ridges_gradient", 
+                      calc_ecdf = TRUE,
+                      quantiles = 4, 
+                      quantile_lines = TRUE,
+                      alpha = .4) +
+  theme_ridges() + 
+  scale_fill_viridis_d(name = "Quartiles")+
+  theme_bw()+
+      labs(
+    y= 'Joviality',
+    x= 'Age (Years)',
+    title = "Joviality among participants with different education",
+    caption = "demographic information, Ohio USA"
+  ) +
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    plot.caption = element_text(hjust = 0),
+    axis.text.x = element_text(vjust = 0.5)
+  )+
+  facet_wrap(~ educationLevel)
+
+p7
+```
+
+
+## Conclusion
+
+
+There are many best practices that can be followed to make our graphs easily readable as well as look pleasant to the eye of the reader.
+Some of the best practices learnt while doing the take home exercise 2 are
+
+* Always ensure that your visual graphs provide a clear picture of the business question asked
+
+* Some numerical data such as age group in this exercise needs to be segregated into categories to get a better understanding overall
+
+* Choose the right visualization techniques to show the correct variables
+
+* ensure that the quantitative scale of your chart begins at 0
+
+* Avoid using colours which are very persistent to your eye such as the use of bright blue colour in the first bar chart to represent values
+
+* Use soft, natural colours to display most information and bright
+and/or dark colours to highlight information that requires greater attention.
+
+
+* the joviality value changes across different age groups over different interests.
+
+* To guarantee that most people who are colour blind can distinguish
+groups of data that are colour coded, avoid using a combination of red and
+green in the same display
+
+* make your graphs more wider than tall
+
+* Tick marks are superfluous on categorical scale
+
+
