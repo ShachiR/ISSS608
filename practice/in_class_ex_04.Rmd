@@ -1,0 +1,53 @@
+---
+title: "In Class Exercise 04"
+description: |
+  Fundamentals of Visual Analytics
+author:
+  - name: Shachi Anirudha Raodeo 
+    url: https://github.com/ShachiR/ISSS608
+    affiliation: Visual Analytics and Applications
+    date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, message= FALSE, warning= FALSE, fig.retina = 3)
+```
+
+# Getting Started
+
+## Setting up R packages
+
+Packages [ggstatsplot](https://www.rdocumentation.org/packages/ggstatsplot/versions/0.9.1) and [tidyverse] (https://www.tidyverse.org/) launched using library()
+
+```{r}
+packages = c('ggstatsplot', 'tidyverse')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p,character.only = T)
+}
+```
+
+## Importing Data
+```{r}
+exam <- read_csv("data/Exam_data.csv")
+```
+
+## Working with ggstatsplot
+
+### Anova Test
+
+```{r fig.width=6, fig.height=6}
+set.seed(1234)
+
+ggbetweenstats(
+  data= exam,
+  x= RACE,
+  y= ENGLISH,
+  type = "bayes"
+)
+```
+
+
