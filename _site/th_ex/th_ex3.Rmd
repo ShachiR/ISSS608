@@ -1,0 +1,231 @@
+---
+title: "Take Home Exercise-3"
+description: |
+  Reveal the economic of the city of Engagement, Ohio USA by using appropriate static and interactive statistical graphics methods for vast 2022 challenge.
+author:
+  - name: Shachi Anirudha Raodeo 
+    url: https://github.com/ShachiR/ISSS608
+    affiliation: School of Computing and Information Systems
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+```
+
+## The Task
+This take-home exercise aims to reveal the economic of the city of Engagement, Ohio USA by using visualization techniques in R.
+
+Economic considers the financial health of the city. Over time, are businesses growing or shrinking? How are people changing jobs? Are standards of living improving or declining over time?
+
+Consider the financial status of Engagement’s businesses and residents, and use visual analytic techniques to address these questions.
+
+Over the period covered by the dataset, which businesses appear to be more prosperous? Which appear to be struggling? 
+
+Links to the dataset:
+
+[`CheckinJournal.csv`](https://vast-challenge.github.io/2022/)
+[`TravelJournal.csv`](https://vast-challenge.github.io/2022/)
+
+## Step-by-step Data Visualisation
+
+### Installing and launching R packages
+
+Packages, namely `tidyverse` and `ggplot2` are required for this exercise. This code chunk installs the required packages and loads them onto RStudio environment.
+
+
+```{r}
+packages = c('tidyverse','ggplot2','ggdist', 'ggridges','patchwork', 'ggthemes',                      'hrbrthemes','ggrepel','ggforce',"HH","vcd",'scales','grid','gridExtra',
+             'formattable','readr', 'ggiraph', 'plotly', 'DT', 'gganimate','readxl',                  'gifski', 'gapminder','treemap', 'treemapify','rPackedBar','ggstatsplot','ggside','broom','crosstalk')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Data Preparation
+
+### Data Source
+The dataset used in this exercise is Participants.csv, published by the IEEE for [VAST challenge 2022] (https://vast-challenge.github.io/2022/) 
+
+### Importing the dataset
+
+The code chunk below imports *Restaurants.csv* and *TravelJournal.csv* and *Pubs.csv* from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *travel* and *restaurants* and *pubs*
+
+
+
+```{r}
+restaurants <- read_csv("data/Restaurants.csv")
+summary(restaurants)
+```
+```{r}
+pubs <- read_csv("data/Pubs.csv")
+summary(pubs)
+```
+```{r eval=FALSE}
+travel <- read_csv("data/TravelJournal.csv")
+summary(restaurants)
+```
+### Missing value check
+
+Before we proceed with data visualization we check if the datasets chosen  have any null values using the code below.
+
+```{r}
+apply(restaurants, 2, function(x) any(is.na(x)))
+
+```
+```{r}
+apply(pubs, 2, function(x) any(is.na(x)))
+
+```
+
+```{r eval=FALSE}
+apply(travel, 2, function(x) any(is.na(x)))
+
+```
+
+Since there are no null values observed we proceed with our next step.
+
+
+## Data Wrangling 
+
+The Travel Journal contains financial transactions by a participant towards Work/Home Commute, Eating, Coming Back From Restaurant,Recreation (Social Gathering), Going Back to Home. 
+*We filter out the records related to Eating and Recreation (Social Gathering)*.
+
+```{r eval=FALSE}
+travel_filt <- travel[travel$purpose %in% c("Eating","Recreation (Social Gathering)"),]
+```
+
+### Calculating Amount Spent
+
+Calculating *the total amount spent at the location as a difference of the starting balance and ending balance* in the travel journal
+
+```{r eval=FALSE}
+travel_filt$amountSpent <- travel_filt$startingBalance -travel_filt$endingBalance
+```
+
+```{r eval=FALSE}
+saveRDS(travel_filt, 'data/travel_filt.rds')
+```
+
+```{r}
+travel_filt <- readRDS('data/travel_filt.rds')
+head(travel_filt)
+```
+
+## Data Visualization
+
+
+Grouping the data by the travelEndLocationId which is equal to the restaurant ID or the pub ID.
+
+```{r}
+travel_group = travel_filt %>%group_by(travelEndLocationId) %>%
+  summarise(amountSpent = sum(amountSpent), 
+            .groups = 'drop')%>%
+  arrange(desc(amountSpent))
+
+``` 
+
+```{r}
+
+library(dplyr)
+data_merge <-merge(x=travel_group, y=restaurants, by.x = 'travelEndLocationId', by.y =  'restaurantId')
+data_merge$travelEndLocationId <- as.character(data_merge$travelEndLocationId)
+data_merge$amountSpent <- data_merge$amountSpent/1000
+```
+
+
+above plot is modified considering the principles of data visualization. The above plot has simple X and Y axis, and is not so visually appealing. A line has been plotted along with the bar chart to make the differences in count easily visible to the reader.
+
+
+```{r}
+ggplot(data = data_merge,aes(x = travelEndLocationId, y=amountSpent)) +
+ geom_col()+
+  xlab("Business ID") +
+  ylab("Revenue (in thousands $)") 
+ 
+```
+
+```{r}
+library(plotly)
+
+color = c('rgba(222,45,38,0.8)','rgba(204,204,204,1)','rgba(204,204,204,1)', 'rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)', 'rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(222,45,38,0.8)','rgba(222,45,38,0.8)','rgba(222,45,38,0.8)',
+          'rgba(222,45,38,0.8)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)')
+
+fig<- plot_ly(data_merge, x = ~reorder(`travelEndLocationId`, -amountSpent), y = ~amountSpent, type = 'bar', marker = list(color = color))
+
+fig <- fig %>% layout(title = "Revenue for Restraunts",
+         xaxis = list(title = "Retaurant ID"),
+         yaxis = list(title = "Revenue (in thousands $)"))
+
+fig
+
+```
+
+
+
+```{r}
+data_pub <-merge(x=travel_group, y=pubs, by.x = "travelEndLocationId", by.y = "pubId")
+data_pub$travelEndLocationId <- as.character(data_pub$travelEndLocationId)
+data_pub$amountSpent <- data_pub$amountSpent/1000
+
+```
+
+```{r}
+library(plotly)
+color = c('rgba(222,45,38,0.8)','rgba(222,45,38,0.8)','rgba(222,45,38,0.8)', 'rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)','rgba(204,204,204,1)', 'rgba(204,204,204,1)', 'rgba(204,204,204,1)', 'rgba(204,204,204,1)')
+fig<- plot_ly(data_pub, x = ~reorder(`travelEndLocationId`, -amountSpent), y = ~amountSpent, type = 'bar', marker = list(color = color))
+
+fig <- fig %>% layout(title = "Revenue for Pubs",
+         xaxis = list(title = "Pub ID"),
+         yaxis = list(title = "Revenue (in thousands $)"))
+
+fig
+```
+```{r}
+treemap(data_merge,
+        index=c("travelEndLocationId"), 
+        vSize="amountSpent",
+        vColor="amountSpent",
+        title="Amount Spent in thousands of Dollars - Restaurants",
+        title.legend = "Amount Spent in thousands of Dollars - Restaurants"
+        )
+```
+
+```{r}
+library(ggdist)
+travel_filt %>%
+  ggplot(aes(x = purpose, 
+             y = amountSpent)) +
+  stat_gradientinterval(
+    fill = "skyblue",
+    show.legend = TRUE
+  ) +
+   theme_bw()+
+  scale_y_continuous(breaks = seq(0, 35, by = 5), 
+                     limits = c(0, 35))+
+  labs(
+    title = "Visualising confidence intervals of mean math score",
+    subtitle = "Gradient + interval plot")+
+    labs(
+    y= 'Revenue',
+    x= 'Purpose',
+    title = "Revenue generated by Purpose",
+    caption = "Economic information, Ohio USA"
+  )+
+  theme(
+    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 1),
+    
+  )
+```
+
+
+ 
