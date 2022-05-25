@@ -1,5 +1,5 @@
 ---
-title: "In Class Exercise 05"
+title: "In Class Exercise 06"
 description: |
   Fundamentals of Visual Analytics
 author:
