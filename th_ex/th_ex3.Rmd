@@ -152,6 +152,11 @@ ggplot(data = data_merge,aes(x = travelEndLocationId, y=amountSpent)) +
  
 ```
 
+### Revenue for Restaurants
+
+The restaurants highlighted in red are among those which had a revenue less than 50 thousand dollars over the period of time
+
+
 ```{r}
 library(plotly)
 
@@ -168,7 +173,9 @@ fig
 
 ```
 
+### Revenue for Pubs
 
+The restaurants highlighted in red are among those which had a revenue less than 300 thousand dollars over the period of time
 
 ```{r}
 data_pub <-merge(x=travel_group, y=pubs, by.x = "travelEndLocationId", by.y = "pubId")

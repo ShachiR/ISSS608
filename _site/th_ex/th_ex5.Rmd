@@ -1,7 +1,7 @@
 ---
-title: "Take Home Exercise-4"
+title: "Take Home Exercise-5"
 description: |
-  Reveal the daily routines of two selected participant of the city of Engagement, Ohio USA.
+  Reveal the social areas of the city of Engagement, Ohio USA.
 author:
   - name: Shachi Anirudha Raodeo 
   - url: https://github.com/ShachiR/ISSS608
@@ -18,28 +18,30 @@ knitr::opts_chunk$set(echo = TRUE,
 ```
 
 ## The Task
-This take-home exercise aims to reveal the daily life of the participants of the city of Engagement, Ohio USA by using visualization techniques in R.
+This take-home exercise aims to reveal reveal social areas and visualizing and analyzing locations with traffic bottleneck of the city of Engagement, Ohio USA by using visualization techniques in R.
 
-This challenge considers the patterns of daily life throughout the city. To describe the daily routines for some representative people, characterize the travel patterns to identify potential bottlenecks or hazards, and examine how these patterns change over time and seasons.
+Assuming the volunteers are representative of the city’s population, characterize the distinct areas of the city that you identify. For each area you identify, provide your rationale and supporting data. 
 
-Assume the participants have given permission to have their daily routines captured. Choose two different participants with different routines and describe their daily patterns, with supporting evidence. Limit your response to 10 images and 500 words.
-
-We consider participants with ID 4 and 486 for the study who have stark differences in their age, joviality, education and household.
+Where are the busiest areas in Engagement? Are there traffic bottlenecks that should be addressed? Explain your rationale.
 
 Links to the dataset:
 
-[`Buildings.csv`](https://vast-challenge.github.io/2022/)
 [`TravelJournal.csv`](https://vast-challenge.github.io/2022/)
-[`ParticipantStatusLogs10.csv`](https://vast-challenge.github.io/2022/)
+[`Employers.csv`](https://vast-challenge.github.io/2022/)
+[`Pubs.csv`](https://vast-challenge.github.io/2022/)
+[`Restaurants.csv`](https://vast-challenge.github.io/2022/)
+[`Buildings.csv`](https://vast-challenge.github.io/2022/)
+[`Schools.csv`](https://vast-challenge.github.io/2022/)
+[`Apartments.csv`](https://vast-challenge.github.io/2022/)
 
 ## Step-by-step Data Visualisation
 
 ### Installing and launching R packages
 
-Packages, namely `tidyverse` and `ggplot2`and ViSiElse are required for this exercise. This code chunk installs the required packages and loads them onto RStudio environment.
+Packages, namely `tidyverse, sftime, ViSiElse, tmap are required for this exercise. This code chunk installs the required packages and loads them onto RStudio environment.
 
 
-```{r}
+```{r warning=FALSE}
 packages = c('tidyverse','ggplot2','ggdist', 'ggridges','patchwork', 'ggthemes','hrbrthemes','ggrepel','ggforce',"HH","vcd",'scales','grid','gridExtra','formattable','readr', 'ggiraph', 'plotly', 'DT', 'gganimate','readxl','gifski','gapminder','treemap','treemapify','rPackedBar','ggstatsplot','ggside','broom','crosstalk','ViSiElse','zoo', 'lubridate', 'remotes', 'trelliscopejs','data.table','sf','tmap','sf','clock','sftime','rmarkdown')
 
 for (p in packages){
@@ -57,7 +59,7 @@ The dataset used in this exercise is Participants.csv, published by the IEEE for
 
 ### Importing the dataset
 
-The code chunk below imports *Buildings.csv* , *TravelJournal.csv*,  *ParticipantStatusLogs10.csv*  from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *buildings*, *travel*, *logs* 
+The code chunk below imports *Buildings.csv* , *TravelJournal.csv*,  *ParticipantStatusLogs10.csv*, *Schools.csv*, *Employers.csv*, *Pubs.csv*, *Restaurants.csv* and *Apartments.csv* from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *buildings*, *travel*, *logs*, *schools*, *employers*, *pubs*, *Restaurants* and  *apartments* 
 
 The *TravelJournal.csv* contains information about participants’ motivation for movement around the city.
 
@@ -66,47 +68,44 @@ The *TravelJournal.csv* contains information about participants’ motivation fo
 travel <- read_csv("data/TravelJournal.csv")
 summary(travel)
 ```
+
 ```{r}
+schools <- read_sf("data/Schools.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+pubs <- read_sf("data/Pubs.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+restaurants <- read_sf("data/Restaurants.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
 buildings <- read_sf("data/Buildings.csv", 
                    options = "GEOM_POSSIBLE_NAMES=location")
+apartments <- read_sf("data/Apartments.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+employers <- read_sf("data/Employers.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+
+
 ```
 
 ```{r eval=FALSE}
-logs <- read_csv("data/ParticipantStatusLogs10.csv")
-```
-```{r echo=FALSE, eval=FALSE}
-logs_plot <- read_sf("data/ParticipantStatusLogs10.csv", 
+logs <- read_sf("data/ParticipantStatusLogs10.csv", 
                 options = "GEOM_POSSIBLE_NAMES=currentLocation")
-glimpse(logs_plot)
+glimpse(logs)
 ```
 
 ## Data Wrangling 
 
-The Travel Journal contains financial transactions by a participant towards Work/Home Commute, Eating, Coming Back From Restaurant,Recreation (Social Gathering), Going Back to Home. 
-The checkin journal contains checkin details into a Restaurant, Pub, Apartment or Workplace
+The Travel Journal contains travel data of a participant towards Work/Home Commute, Eating, Coming Back From Restaurant,Recreation (Social Gathering), Going Back to Home.
 
-*We filter out the records related participant 4 and 486*
-We choose participant 4 for analysis as participant 4 - has kids in his household, has a household size of 3, is aged 43, has completed his/her bachelors and has a high joviality of 0.85
+The other schools, buildings, restaurants, pubs, apartments and employers gives us location of distinct places in the city.
 
-As compared to participant 4 participant 486 - has no lids in household, has a household size of 1, is aged 29, has low education level and a low joviality of 0.02
+Participant logs gives us the routine log file of a participant over a certain time period.
 
-We aim to find the lifestyle patterns and daily routine of both these participants.
-
-
-```{r eval=FALSE}
-travel_filt <- travel[travel$participantId %in% c("4","486"),]
-```
-
-```{r eval=FALSE}
-logs <- logs[logs$participantId %in% c("4","486"),]
-logs_plot <- logs_plot[logs_plot$participantId %in% c("4","486"),]
-```
 ### Calculating Amount Spent
 
 Calculating *the total amount spent at the location as a difference of the starting balance and ending balance* in the travel journal gives us the amount spent by the participant at a particular location.
 
 ```{r eval=FALSE}
-travel_filt$amountSpent <- travel_filt$endingBalance -travel_filt$startingBalance
+travel$amountSpent <- travel$endingBalance -travel$startingBalance
 ```
 
 
@@ -115,14 +114,14 @@ travel_filt$amountSpent <- travel_filt$endingBalance -travel_filt$startingBalanc
 We use weekdays(), day(), month(), year() functions to extract the day of the week, date, moth and year of checkin to perform time series visualizations.
 
 
-
 ### Calculate the time spent at a particular place and the travel time
 
 Calculate travel time as the difference between the travel start time and the travel end time and calculate the time spent as the difference of check in and check out times.
 
+
 ```{r eval=FALSE}
 
-data_travel= travel_filt %>%
+data_travel= travel%>%
   mutate(weekday = weekdays(checkInTime),
          day = day(checkInTime),
          month=as.character(checkInTime,"%b %y"),
@@ -150,13 +149,11 @@ data_travel <- data_travel[,c("participantId","travelStartLocationId", "travelEn
 ```{r eval=FALSE}
 saveRDS ( data_travel, 'data/data_travel.rds')
 saveRDS ( logs, 'data/logs.rds')
-saveRDS ( logs_plot, 'data/logs_plot.rds')
 ```
 
 ```{r}
 data_travel <- readRDS ( 'data/data_travel.rds')
 head (data_travel)
-logs_plot <- readRDS ( 'data/logs_plot.rds')
 
 logs <- readRDS ( 'data/logs.rds')
 head(logs)
@@ -164,176 +161,10 @@ head(logs)
 
 ## Data Visualization
 
-### Time spent over the days in travelling March 2022
+### Buildings present in Ohio, USA
 
 ```{r}
-march <- data_travel %>%
-  filter(year %in% c('2022'))%>%
-  group_by(monthYear,participantId) %>%
-  summarise(travelTime = mean(abs(travelTime)))
-```
-
-```{r}
-p<- ggplot(march, aes(x=monthYear, y=travelTime, group=participantId)) +
-  geom_line(aes(color=participantId),show.legend = TRUE)+
-  labs(
-    y= 'Average Time',
-    x= 'months -2022',
-    title = "Average time spent in Travel - 2022",
-    caption = "Ohio USA"
-  ) +
-  theme_minimal()+
-  theme(axis.ticks.x= element_blank(),
-        panel.background= element_blank(), 
-        legend.background = element_blank(),
-        plot.title = element_text(size=12, face="bold",hjust = 0.5),
-        plot.subtitle = element_text(hjust = 1),
-        plot.caption = element_text(hjust = 0),
-        axis.title.y= element_text(angle=0))
-
-ggplotly(p)
-```
-
-### Plot of travel time v/s time spent at the venue
-
-```{r}
-plot_ly(data = data_travel,
-        x = ~travelTime,
-        y = ~timeSpent,
-        color = ~weekday) %>%
-  layout(title = 'Travel time v/s time spent')
-```
-
-### Animated plot of Plot of travel time v/s time spent at the venue
-
-```{r}
-ggplot(data_travel, aes(x = travelTime, 
-                    y = timeSpent,
-                    size = participantId,
-                    colour = weekday)) +
-  geom_point(alpha = 0.5, show.legend = TRUE) +
-  labs(title = 'Time spent at a place v/s travel time', 
-       x = 'Travel time', 
-       y = 'Time Spent') +
-  theme_minimal()+
-  transition_time(as.integer(monthYear)) +
-  ease_aes('linear')
-```
-
-### Ridge plot of time spent over the different months for both participants
-
-```{r}
-participant_data = data_travel %>% group_by(weekday,month, purpose, participantId) %>%
-  summarise(timeSpent = mean(timeSpent))
-```
-
-```{r}
-ggplot(data= participant_data, 
-       aes(x = timeSpent, y= month, group = month, fill = month)) +
-  geom_density_ridges(geom = "density_ridges_gradient", 
-                      calc_ecdf = TRUE,
-                      quantiles = 4, 
-                      quantile_lines = TRUE,
-                      alpha = .3) +
-  theme_ridges() + 
-  scale_fill_viridis_d(name = "Quartiles")+
-  theme_bw()+
-      labs(
-    y= 'month',
-    x= 'Time Spent',
-    title = "Time Spent at Venue",
-    caption = "Ohio USA"
-  )+
-  theme(
-    axis.title.y= element_text(angle=0), axis.ticks.x= element_blank(),
-    plot.title = element_text(hjust = 0.5),
-    plot.subtitle = element_text(hjust = 1),
-    plot.caption = element_text(hjust = 0),
-    axis.text.x = element_text(vjust = 0.5),
-    legend.position = "none"
-  )+
-facet_wrap(~participantId)
-```
-
-###  Trelliscope of time spent over the months based on purpose 
-
-```{r}
-ggplot(data_travel,
-       aes(y = timeSpent, x = factor(month,
-      levels=c("Mar 22","Apr 22","May 22","Jun 22","Jul 22","Aug 22","Sep 22","Oct 22","Nov 22","Dec 22","Jan 23","Feb 23","Mar 23","Apr 23","May 23")), fill= purpose))+
-  geom_col(aes(group=1))+
-  xlab("Month")+
-  ylab("Time Spent")+
-  facet_trelliscope(~ weekday,nrow=2,ncol=2,path=".",width=800)+
-  theme(axis.text.x = element_text(size=6),
-        axis.text.y = element_text(size=6))
-
-```
-
-### Plot of amount spent for different Purposes
-
-```{r}
-spending_data = data_travel %>% group_by(weekday, participantId, purpose) %>%
-  summarise(amountSpent = sum(amountSpent))
-```
-
-```{r}
-plot_ly(data=spending_data, x = ~purpose, y = ~amountSpent, color = ~weekday)  
-```
-
-### Calendar heat map of the Average Travel Time
-
-```{r}
-participant_time = data_travel %>%
-  mutate(weekday = weekdays(checkInTime),
-         day = day(checkInTime),
-         hour = hour(checkInTime),
-         participantId=as.character(participantId))%>%
-  na.omit()
-```
-
-
-```{r}
-wkday_levels <- c('Saturday', 'Friday', 
-                  'Thursday', 'Wednesday', 
-                  'Tuesday', 'Monday', 
-                  'Sunday')
-participant_time <- participant_time %>%
-  group_by(participantId) %>%
-  mutate(weekday = factor(
-    weekday, levels = wkday_levels),
-    hour  = factor(
-      hour, levels = 0:23))
-```
-
-```{r}
-participant_time%>%
-  ggplot(aes(hour,weekday,fill=travelTime))+
-  geom_tile(color = "white", size = 0.05)+
-  theme_tufte(base_family = "Helvetica")+
-  coord_equal() +
-  scale_fill_gradient(name = "Time (min)",
-                    low = "sky blue", 
-                    high = "dark blue",
-                    labels = comma,
-                    na.value = 'sky blue')+
-  labs(x = "Weeks of the Year",
-       y = NULL,
-       title = "Average Travel Time participant") +
-  theme(axis.text = element_text(size = 7,margin = margin(r = -60)),
-        axis.ticks.y= element_blank(),
-        legend.title = element_text(size =12),
-        legend.text = element_text(size = 12),
-        axis.title.x = element_text(size=12),
-        panel.background = element_rect(fill = 'sky blue'))+
-  facet_col(~participantId)
-
-```
-
-### Travel route of participant 4
-
-```{r}
-logs_path <- logs_plot %>%
+logs_path <- logs %>%
   mutate(Timestamp = date_time_parse(timestamp,
                                      zone= "",
                                      format = "%Y-%m-%dT%H:%M:%S"))%>%
@@ -341,60 +172,140 @@ logs_path <- logs_plot %>%
   filter(currentMode == "Transport")
 ```
 
-```{r}
-logs_path <- logs_path %>%
-  group_by(participantId, day) %>%
-  summarize(m = mean(Timestamp), 
-            do_union=FALSE) %>%
-  st_cast("LINESTRING")
-```
-
-```{r}
-logs_path_4 <- logs_path %>%
-  filter(participantId==4)
+```{r }
 tmap_mode("view")
 tm_shape(buildings)+
 tm_polygons(col = "grey60",
            size = 1,
            border.col = "black",
-           border.lwd = 1)+
-tm_shape(logs_path)+
-tm_lines(col = "blue")+
+           border.lwd = 1)
 tmap_mode("plot")
 ```
 
+### Location of Employers present in Ohio USA
+
+We notice that employers are distributed throughout the city with a maximum number in the central part of the city which appears more connected.
+
 ```{r}
-logs_path_486 <- logs_path %>%
-  filter(participantId==486)
 tmap_mode("view")
 tm_shape(buildings)+
 tm_polygons(col = "grey60",
            size = 1,
            border.col = "black",
-           border.lwd = 1)+
-tm_shape(logs_path)+
-tm_lines(col = "blue")+
-tmap_mode("plot")
+           border.lwd = 1) +
+tm_shape(employers) +
+  tm_dots(col = "blue")
+```
+
+### Location of Schools present in Ohio USA
+
+Since we have only one school present in the city of engagement Ohio, USA. we notice that two schools are present in the north east block of the city, one in th central east and one in the southern block.
+
+```{r}
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "grey60",
+           size = 1,
+           border.col = "black",
+           border.lwd = 1) +
+tm_shape(schools) +
+  tm_dots(col = "yellow")
+```
+
+### Distribution of Restaurants in Ohio, USA
+
+It is found that the restaurants are more distributed towards the northen and central blovks of the city as compared to the southern block.
+The southern block only hosts three restaurants.
+
+```{r}
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "grey60",
+           size = 1,
+           border.col = "black",
+           border.lwd = 1) +
+tm_shape(restaurants) +
+  tm_dots(col = "red")
+```
+
+### Distibution of Apartments in Ohio USA
+
+Housing locations/ apartments are located in clusters in certain blocks of the city.
+
+```{r}
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "grey60",
+           size = 0.5,
+           border.col = "black",
+           border.lwd = 1) +
+tm_shape(apartments) +
+  tm_dots(col = "orange")
+```
+
+```{r}
+hex_buildings <- st_make_grid(buildings, 
+                    cellsize=100, 
+                    square=FALSE) %>%
+  st_sf() %>%
+  rowid_to_column('hex_id_buil')
+
+points_in_hex_buil <- st_join(logs_path, 
+                         hex_buildings, 
+                         join=st_within) %>%
+  st_set_geometry(NULL) %>%
+  count(name='pointCount', hex_id_buil)
+head(points_in_hex_buil)
+
 ```
 
 
 ```{r}
-logs_4 <- logs[logs$participantId %in% c("4"),]
+hex_combined_buil <- hex_buildings %>%
+  left_join(points_in_hex_buil, 
+            by = 'hex_id_buil') %>%
+  replace(is.na(.), 0)
 
+tm_shape(hex_combined_buil %>%
+           filter(pointCount > 0))+
+  tm_fill("pointCount",
+          n = 8,
+          style = "quantile") +
+  tm_borders(alpha = 0.1)
 ```
 
 ```{r}
-logs_4<- logs_4 %>%
-  mutate(time= format(as.POSIXct(timestamp),   # Extract hours, minutes & seconds
-                 format = "%H:%M:%S"),)
+hex_employers <- st_make_grid(employers, 
+                    cellsize=100, 
+                    square=FALSE) %>%
+  st_sf() %>%
+  rowid_to_column('hex_id_emp')
 
+points_in_hex_emp <- st_join(logs_path, 
+                         hex_employers, 
+                         join=st_within) %>%
+  st_set_geometry(NULL) %>%
+  count(name='pointCount', hex_id_emp)
+head(points_in_hex_emp)
 ```
 
 ```{r}
-logs_4<- logs_4[,c("timestamp","time", "currentMode", "hungerStatus", "sleepStatus")]
-logst_4 <- transpose(logs_4)
+hex_combined_emp <- hex_employers %>%
+  left_join(points_in_hex_emp, 
+            by = 'hex_id_emp') %>%
+  replace(is.na(.), 0)
+
+tm_shape(hex_combined_emp %>%
+           filter(pointCount > 0))+
+  tm_fill("pointCount",
+          n = 8,
+          style = "quantile",colorNA = 'white', palette = "-magma") +
+  tm_borders(alpha = 0.1)
+```
+
+```{r}
 
 ```
 
 
- 
+
