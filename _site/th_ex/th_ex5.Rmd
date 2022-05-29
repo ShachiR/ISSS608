@@ -42,7 +42,7 @@ Packages, namely `tidyverse, sftime, ViSiElse, tmap are required for this exerci
 
 
 ```{r warning=FALSE}
-packages = c('tidyverse','ggplot2','ggdist', 'ggridges','patchwork', 'ggthemes','hrbrthemes','ggrepel','ggforce',"HH","vcd",'scales','grid','gridExtra','formattable','readr', 'ggiraph', 'plotly', 'DT', 'gganimate','readxl','gifski','gapminder','treemap','treemapify','rPackedBar','ggstatsplot','ggside','broom','crosstalk','ViSiElse','zoo', 'lubridate', 'remotes', 'trelliscopejs','data.table','sf','tmap','sf','clock','sftime','rmarkdown')
+packages = c('tidyverse','readr','knitr','sf','tmap','sf','clock','sftime','rmarkdown','distill','lubridate')
 
 for (p in packages){
   if(!require(p, character.only = T)){
@@ -68,6 +68,8 @@ The *TravelJournal.csv* contains information about participants’ motivation fo
 travel <- read_csv("data/TravelJournal.csv")
 summary(travel)
 ```
+
+read_sf() of sf package is used to parse School.csv Pubs.csv, Apartments.csv, Buildings.csv, Employer.csv, and Restaurants.csv into R as sf data.frames
 
 ```{r}
 schools <- read_sf("data/Schools.csv", 
@@ -112,9 +114,9 @@ travel$amountSpent <- travel$endingBalance -travel$startingBalance
 ### Extract information from timestamp
 
 We use weekdays(), day(), month(), year() functions to extract the day of the week, date, moth and year of checkin to perform time series visualizations.
+Extract the date from timestamp using floor_date() function.
 
-
-### Calculate the time spent at a particular place and the travel time
+Convert the travelEndLocationId into character format.
 
 Calculate travel time as the difference between the travel start time and the travel end time and calculate the time spent as the difference of check in and check out times.
 
@@ -140,11 +142,15 @@ data_travel$travelTime <- as.numeric(as.character(data_travel$travelTime))
 
 ### Filter necessary columns
 
+filter out the columns needed and pass them to the tibblr data frame.
+
 ```{r eval=FALSE}
 data_travel <- data_travel[,c("participantId","travelStartLocationId", "travelEndLocationId", "purpose", "checkInTime", "amountSpent","timeSpent","travelTime","weekday","day","month","year","monthYear")]
 ```
 
 ### Save files as RDS
+
+save file into rds using saveRDS() function.
 
 ```{r eval=FALSE}
 saveRDS ( data_travel, 'data/data_travel.rds')
@@ -158,10 +164,11 @@ head (data_travel)
 logs <- readRDS ( 'data/logs.rds')
 head(logs)
 ```
+### Process movement Data
 
-## Data Visualization
-
-### Buildings present in Ohio, USA
+convert timestamp field from character data type to date-time data type by using date_time_parse() of clock package.
+derive a day field by using get_day() of clock package.
+extract records whereby currentMode field is equal to Transport class by using filter() of dplyr package.
 
 ```{r}
 logs_path <- logs %>%
@@ -171,9 +178,14 @@ logs_path <- logs %>%
   mutate(day=get_day(Timestamp))%>%
   filter(currentMode == "Transport")
 ```
+## Data Visualization
+
+### Buildings present in Ohio, USA
+
+plot the building polygon features by using tm_polygon() function.
 
 ```{r }
-tmap_mode("view")
+tmap_mode("plot")
 tm_shape(buildings)+
 tm_polygons(col = "grey60",
            size = 1,
@@ -182,9 +194,57 @@ tm_polygons(col = "grey60",
 tmap_mode("plot")
 ```
 
-### Location of Employers present in Ohio USA
+### Location of Employers, Restaurants and Pubs present in Ohio USA
 
 We notice that employers are distributed throughout the city with a maximum number in the central part of the city which appears more connected.
+
+
+It is found that the restaurants are more distributed towards the northen and central blovks of the city as compared to the southern block.
+The southern block only hosts three restaurants.
+
+We also notice that most of the restaurants are present in and around the areas with employers which says that restaurant and pub owners build up restaurants near workplaces as it is a common practice for working people to visit the restaurants and pubs near office places.
+
+
+
+```{r}
+tmap_mode("plot")
+tm_shape(buildings)+
+tm_polygons(col = "grey60",
+           size = 1,
+           border.col = "black",
+           border.lwd = 1) +
+tm_shape(employers) +
+  tm_dots(col = "blue")+
+tm_shape(restaurants)+
+  tm_dots(col = "red")+
+  tm_shape(pubs) +
+  tm_dots(col = "green")
+tmap_mode("plot")
+```
+
+### Location of Apartments and Schools present in Ohio USA
+
+Since we have only one school present in the city of engagement Ohio, USA. we notice that two schools are present in the north east block of the city, one in th central east and one in the southern block.
+
+```{r}
+tmap_mode("plot")
+tm_shape(buildings)+
+tm_polygons(col = "grey60",
+           size = 1,
+           border.col = "black",
+           border.lwd = 1) +
+tm_shape(schools) +
+  tm_dots(col = "red")+
+  tm_shape(apartments) +
+  tm_dots(col = "yellow")
+tmap_mode("plot")
+```
+
+### Popular regions Ohio, USA
+
+There are certain residential areas and certain office suburbs in the city of engagement Ohio USA.
+The Restaurants and Pubs are intermixed among these areas.
+All schools except school with schoolId 0 are located near to the periphery of the city of Ohio.
 
 ```{r}
 tmap_mode("view")
@@ -194,54 +254,36 @@ tm_polygons(col = "grey60",
            border.col = "black",
            border.lwd = 1) +
 tm_shape(employers) +
-  tm_dots(col = "blue")
-```
-
-### Location of Schools present in Ohio USA
-
-Since we have only one school present in the city of engagement Ohio, USA. we notice that two schools are present in the north east block of the city, one in th central east and one in the southern block.
-
-```{r}
-tmap_mode("view")
-tm_shape(buildings)+
-tm_polygons(col = "grey60",
-           size = 1,
-           border.col = "black",
-           border.lwd = 1) +
+  tm_dots(col = "blue") +
+tm_shape(apartments) +
+  tm_dots(col = "lightblue") +
+tm_shape(pubs) +
+  tm_dots(col = "red") +
+tm_shape(restaurants) +
+  tm_dots(col = "green") +
 tm_shape(schools) +
   tm_dots(col = "yellow")
+tmap_mode("plot")
 ```
 
-### Distribution of Restaurants in Ohio, USA
+### Plotting movement data for participants
 
-It is found that the restaurants are more distributed towards the northen and central blovks of the city as compared to the southern block.
-The southern block only hosts three restaurants.
+All th regions which act as connection nodes between two regions are the regions with most traffic.
+Inline regions or small lanes with dead ends are not much frequented.
 
 ```{r}
-tmap_mode("view")
+tmap_mode("plot")
 tm_shape(buildings)+
 tm_polygons(col = "grey60",
            size = 1,
            border.col = "black",
            border.lwd = 1) +
-tm_shape(restaurants) +
-  tm_dots(col = "red")
+tm_shape(logs_path) +
+  tm_dots(col = "yellow", size= 0.02) 
+tmap_mode("plot")
+
 ```
 
-### Distibution of Apartments in Ohio USA
-
-Housing locations/ apartments are located in clusters in certain blocks of the city.
-
-```{r}
-tmap_mode("view")
-tm_shape(buildings)+
-tm_polygons(col = "grey60",
-           size = 0.5,
-           border.col = "black",
-           border.lwd = 1) +
-tm_shape(apartments) +
-  tm_dots(col = "orange")
-```
 
 ```{r}
 hex_buildings <- st_make_grid(buildings, 
@@ -303,9 +345,12 @@ tm_shape(hex_combined_emp %>%
   tm_borders(alpha = 0.1)
 ```
 
-```{r}
 
-```
+## Conclusion
 
+1. Small lanes in the city of Ohio which do not connect to major points in the city or are present at the city periphery have less traffic.
 
+2. Areas in Ohio which are more interconnected and connect important buildings such as school to apartments or apartments or employers to restaurants and pubs have more traffic as they serve for the daily movement of the participants from school to home or from restaurant/pub or from places of recreation or social gathering to home
+
+3. Areas in Ohio surrounding clusters of apartments are high traffic bottleneck areas 
 
