@@ -17,6 +17,8 @@ navbar:
       href: "th_ex/th_ex4.html"
     - text: "Take Home Exercise 5"
       href: "th_ex/th_ex5.html"
+    - text: "Take Home Exercise 6"
+      href: "th_ex/th_ex6.html"
   - text: "In Class Exercise"
     menu:
     - text: "In Class Exercise 4"

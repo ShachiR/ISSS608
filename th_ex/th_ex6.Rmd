@@ -1,0 +1,524 @@
+---
+title: "Take Home Exercise-6"
+description: |
+  Reveal the patterns of community interactions of the city of Engagement, Ohio USA
+author:
+  - name: Shachi Anirudha Raodeo 
+  - url: https://github.com/ShachiR/ISSS608
+    affiliation: School of Computing and Information Systems
+date: "`r Sys.Date()`"
+output: distill::distill_article
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      eval = TRUE,
+                      message = FALSE)
+```
+
+## The Task
+
+Consider the social activities in the community. What patterns do you see in the social networks in the town? Describe up to ten significant patterns you observe, with evidence and rationale and model, analyse and visualise network data using R.
+
+Links to the dataset:
+
+[`SocialNetwork.csv`](https://vast-challenge.github.io/2022/)
+[`Participants.csv`](https://vast-challenge.github.io/2022/)
+
+## Step-by-step Data Visualisation
+
+### Installing and launching R packages
+
+Packages, namely `igraph`, `tidygraph`, `visNetwork`, `graphlayouts` are required for this exercise. This code chunk installs the required packages and loads them onto RStudio environment.
+
+
+```{r warning=FALSE}
+packages = c('tidyverse','readr','knitr','sf','tmap','sf','clock','sftime','rmarkdown','distill','lubridate','igraph', 'tidygraph','ggraph', 'visNetwork', 'graphlayouts','dplyr')
+
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+## Data Preparation
+
+### Data Source
+The datasets used in this exercise, published by the IEEE for [VAST challenge 2022] (https://vast-challenge.github.io/2022/) 
+
+The `SocialNetwork.csv `contains networking data of a participant (the participants who met in a day)
+Contains information about participants’ evolving social relationships.
+
+`Participants.csv` Contains information about the residents of Engagement, OH that have agreed to participate in
+this study.
+
+### Importing the dataset
+
+The code chunk below imports *SocialNetwork.csv* and *Participants.csv* from the data folder into R by using [`read_csv()`](https://readr.tidyverse.org/reference/read_delim.html) function of **readr** and saves it as Tibble data frame called *social* and *participants*
+
+We will examine the structure of the data frame using glimpse() of dplyr.
+
+```{r eval=FALSE}
+social <- read_csv("data/SocialNetwork.csv")
+glimpse(social)
+```
+
+
+```{r eval=FALSE}
+participants <- read_csv("data/Participants.csv")
+glimpse(participants)
+```
+
+We see above that participantId is treated as a numerical value in both the dataframes above. It needs to be converted into a character.
+
+## Data Wrangling 
+
+
+### Extract information from timestamp
+
+We use wday(), day(), month() functions to extract the day of the week, date, moth and year from timestamp to perform time series visualizations.
+
+wday() is functions of lubridate package. 
+wday() returns the day of the week as a decimal number or an ordered factor if label is TRUE. The argument abbr is FALSE keep the daya spells in full, i.e. Monday.
+The function will create a new column in the data.frame i.e. Weekday and the output of wday() will save in this newly created field.
+the values in the Weekday field are in ordinal scale.
+
+floor_date() is use to extract date from timestamp.
+
+*Increment each `participantId` from participants and participantIdTo, participantIdFrom from social by 1 as i graph cannot understand 0 as number*
+
+```{r eval=FALSE}
+
+data_social= social%>%
+  mutate(weekday = wday(timestamp,label = TRUE, abbr = FALSE),
+         day = day(timestamp),
+         month=as.character(timestamp,"%b %y"),
+         date = floor_date(timestamp),
+         participantIdFrom= participantIdFrom + 1,
+         participantIdTo= participantIdTo + 1)
+
+``` 
+
+```{r eval=FALSE}
+data_participants= participants%>%
+  mutate(participantId=participantId + 1)
+``` 
+
+### Change datatypes
+
+Convert `participantId` from *participants* and `participantIdFrom`, `participantIdTo` from *social* into character.
+
+```{r eval=FALSE}
+data_social= data_social%>%
+  mutate(participantIdFrom=as.character(participantIdFrom),
+         participantIdTo=as.character(participantIdTo))
+```
+
+```{r eval=FALSE}
+glimpse(data_social)
+
+```
+
+
+
+```{r eval=FALSE}
+data_participants= data_participants%>%
+  mutate(participantId=as.character(participantId))
+``` 
+
+
+```{r eval=FALSE}
+glimpse(data_participants)
+
+```
+
+### Split age into categories
+
+Since the number of age groups are too many to derive a generalized conclusion we group the ages into five categories - less than or equal to 20, in 20’s, 30’s, 40’s and the ones greater than 50 .
+age groups are split using the cut() function in R.
+
+```{r eval=FALSE}
+data_participants$agegroup <- cut(data_participants$age, breaks = c(17,25,35,45,55,60), 
+                             labels = c("18-25","26-35","36-45","45- 55","55-60"))
+```
+
+```{r eval=FALSE}
+data_participants= data_participants%>%
+  mutate(agegroup=as.character(agegroup))
+``` 
+
+### Aggregate records with weight > 64
+
+*data_social* dataframe reveals that it consists of individual networking/ meeting records. This is not very useful for visualization.
+
+Hence, we will aggregate the participantId by *date*, *participantIdFrom*, *participantIdTo* and *weekday*.
+
+Functions from dplyr package are used. They are:  group(), summarise(), and ungroup().
+
+*To be able to get strong connections between participants we filter the data based on weight greater then 64*
+*Social data consists of dates between 01-03-2022 to 25-05-2023*
+
+*We filter out only those pair of participant ID's who have met at least once a week between the two dates*(the participants who have met at least 64 times during the timeline of data available) as
+The number of weeks between these two dates is 64. 
+
+```{r eval=FALSE}
+social_aggregated <- data_social %>%
+  group_by(participantIdFrom, participantIdTo, weekday) %>%
+    summarise(Weight = n()) %>%
+  filter(participantIdFrom!=participantIdTo) %>%
+  filter(Weight > 64) %>%
+  ungroup()
+```
+
+### Keep only aggregated nodes with weight > 64
+
+save the participantIdFrom in a new dataframe nodes_list and remove the duplicates to get the dataframe of nodes with weight > 64
+
+```{r eval=FALSE}
+nodes_list <- social_aggregated[,c("participantIdFrom")]
+nodes_list <- distinct(nodes_list)
+```
+
+```{r eval=FALSE}
+participants_nodes <-merge(x=nodes_list, y=data_participants, by.x = 'participantIdFrom', by.y =  'participantId')
+```
+
+### Save files as RDS
+
+save file into rds using saveRDS() function.
+
+```{r eval=FALSE}
+saveRDS (social_aggregated, 'data/social_aggregated_64.rds')
+saveRDS (participants_nodes, 'data/participants_nodes_64.rds')
+
+```
+
+```{r}
+social_aggregated <- readRDS ( 'data/social_aggregated_64.rds')
+glimpse (social_aggregated)
+participants_nodes <- readRDS ( 'data/participants_nodes_64.rds')
+glimpse (participants_nodes)
+```
+
+### Aggregate records to filter records with weight> 32
+
+*We filter out only those pair of participant ID's who have met at least once in two weeks between the two dates* (the participants who have met at least 32 times during the timeline of data available)
+
+```{r eval=FALSE}
+social_aggregated_32 <- data_social %>%
+  group_by(participantIdFrom, participantIdTo, weekday) %>%
+    summarise(Weight = n()) %>%
+  filter(participantIdFrom!=participantIdTo) %>%
+  filter(Weight > 32) %>%
+  ungroup()
+```
+
+### Keep only aggregated nodes with weight > 32
+
+save the participantIdFrom in a new dataframe nodes_list and remove the duplicates to get the dataframe of nodes with weight > 32
+
+```{r eval=FALSE}
+nodes_list_32 <- social_aggregated_32[,c("participantIdFrom")]
+nodes_list_32 <- distinct(nodes_list_32)
+```
+
+```{r eval=FALSE}
+participants_nodes_32 <-merge(x=nodes_list_32, y=data_participants, by.x = 'participantIdFrom', by.y =  'participantId')
+```
+
+### Save files as RDS
+
+save file into rds using saveRDS() function.
+
+```{r eval=FALSE}
+saveRDS (social_aggregated_32, 'data/social_aggregated_32.rds')
+saveRDS (participants_nodes_32, 'data/participants_nodes_32.rds')
+```
+
+```{r}
+social_aggregated_32 <- readRDS ( 'data/social_aggregated_32.rds')
+participants_nodes_32 <- readRDS ( 'data/participants_nodes_32.rds')
+glimpse (social_aggregated)
+```
+
+## Data Visualization
+
+### Creating the graph data.frame weight>64
+
+tbl_graph() of tinygraph package to build an tidygraph's network graph data.frame
+
+```{r}
+social_graph <- tbl_graph(nodes = participants_nodes,
+                           edges = social_aggregated, 
+                           directed = TRUE)
+```
+
+
+```{r}
+social_graph
+```
+
+The output above reveals that social_graph is a tbl_graph object with 227 nodes and 864 edges.
+The command also prints the first six rows of "Node Data" and the first three of "Edge Data".
+It states that the Node Data is active. 
+The notion of an active tibble within a tbl_graph object makes it possible to manipulate the data in one tibble at a time.
+
+
+### Arranging the graph data.frame
+
+Rearrange the rows in the edges tibble to list those with the highest "weight" using activate()
+
+```{r}
+social_graph %>%
+  activate(edges) %>%
+  arrange(desc(Weight))
+```
+
+### Creating the graph data.frame weight > 32 and arranging data
+
+
+```{r}
+social_graph_32 <- tbl_graph(nodes = participants_nodes_32,
+                           edges = social_aggregated_32, 
+                           directed = TRUE)
+```
+
+```{r}
+social_graph_32
+```
+
+```{r}
+social_graph_32 %>%
+  activate(edges) %>%
+  arrange(desc(Weight))
+```
+
+### Age groups in Social Networks weight > 64
+
+geom_edge_link draws edges in the simplest way - as straight lines between the start and end nodes.Argument width is used to map the width of the line in proportional to the Weight attribute and argument alpha is used to introduce opacity on the line.
+
+```{r}
+g <- ggraph(social_graph) +
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.4)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 2)
+g + theme_graph()
+```
+*Observations:*
+
+* connections between only two nodes show that only the two nodes are independently friends with each other with no other common friends
+* networks within groups of nodes without a group show friends and mutual friends
+* There are atleast 21 friend circles in the city of engagement who have met more than 64 times in the period of observation
+* With the plot above we can see that a majority of the groups with size more than three are formed either between the same age group or between adjacent age groups such that the age difference is not very large
+
+* The above is not applicable for groups with less than 3 participants
+
+### Age groups in Social Networks weight > 32
+
+```{r}
+g <- ggraph(social_graph_32) +
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.2)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 1)
+g + theme_graph()
+```
+
+If we reduce the weight from 64 to 32 we get a large group of network/ participants who meet but we cannot tell if all of them meet up frequently.  
+
+### Social Networks over different weekdays weight > 64
+
+Use the facet_edges() function to plot the social network plots over different days of the week
+
+```{r}
+set_graph_style() 
+g <- ggraph(social_graph, layout = "fr") + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 1)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 2)
+g + facet_edges(~weekday) +
+  th_foreground(foreground = "grey80",  
+                border = TRUE) +
+  theme(legend.position = 'bottom')
+```
+
+*Observations:*
+
+
+* The plot of networks over different days of the week shows that the distribution of groups is same over the three days except for very minor differences
+
+* *Here we have only three days of the week Tuesday, Wednesday, Thursday left after filtering out weight> 64*
+hence we can say that people meet their closest friends only on Tuesdays, Wednesdays and Thursdays in the city of Engagement.
+
+### Social Networks over different weekdays weight > 32 
+
+```{r}
+set_graph_style() 
+g <- ggraph(social_graph_32, layout = "fr") + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.2)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 1)
+g + facet_edges(~weekday) +
+  th_foreground(foreground = "grey80",  
+                border = TRUE) +
+  theme(legend.position = 'bottom')
+```
+when we make the weight less we observe that the participants network on all days of the week 
+
+### Social Networks for different education levels weight > 64
+
+Use the facet_nodes() function to plot the social network plots for participants with different education level.
+
+```{r}
+set_graph_style()
+g <- ggraph(social_graph) + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.8)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 2)
+g + facet_nodes(~educationLevel)+
+  th_foreground(foreground = "grey80",  
+                border = TRUE) +
+  theme(legend.position = 'bottom')
+```
+*Observations:*
+
+* Within the same education level there are a few groups of friends who network in participants and who have completed bachelors or are from high school or college.
+
+* There are only two pairs of frequently networking friends among those who are graduates. The number of time friends meet decreases as the education level goes up
+
+* No participant from the low income age group network or maybe the people from low education groups come from poor financial backgrounds hence they do not find time nor have the money to network.
+
+
+### Social Networks for different education levels weight > 64 - shade by having Kids
+
+Use the facet_nodes() function to plot the social network plots for participants with different education level.
+
+```{r}
+set_graph_style()
+g <- ggraph(social_graph) + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.8)) +
+  geom_node_point(aes(colour = haveKids), 
+                  size = 2)
+g + facet_nodes(~educationLevel)+
+  th_foreground(foreground = "grey80",  
+                border = TRUE) +
+  theme(legend.position = 'bottom')
+```
+
+*Observations:*
+
+* All of the participants who network among the ones who have completed bachelors and graduate are the ones who have Kids
+
+* Only two friend networks in who have completed high school or college consists of a member without kids and two members having kids
+
+
+### Social Networks for differenthousehold size weight > 64 - shade by age
+
+Use the facet_nodes() function to plot the social network plots for participants with different education level.
+
+```{r}
+set_graph_style()
+g <- ggraph(social_graph) + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 0.8)) +
+  geom_node_point(aes(colour = agegroup), 
+                  size = 2)
+g + facet_nodes(~householdSize)+
+  th_foreground(foreground = "grey80",  
+                border = TRUE) +
+  theme(legend.position = 'bottom')
+```
+
+*Observation:*
+
+* Only the people who live alone( with household size of 1) network more and have a group of common friends (more than 4 in a group) who network frequently
+
+### Betweenness Centrality
+
+```{r}
+g <- social_graph %>%
+  filter(householdSize == 1) %>%
+  mutate(betweenness_centrality = centrality_betweenness()) %>%
+  ggraph(layout = "fr") + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 1)) +
+  geom_node_point(aes(colour = agegroup,
+            size=betweenness_centrality))
+g + theme_graph()
+```
+
+### Btweeness centrality without layout
+
+```{r}
+g <- social_graph %>%
+  filter(householdSize == 1) %>%
+  mutate(betweenness_centrality = centrality_betweenness()) %>%
+  ggraph() + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 1)) +
+  geom_node_point(aes(colour = agegroup,
+            size=betweenness_centrality))
+g + theme_graph()
+```
+
+*Observations:*
+
+* There is one interconnecting group shown on the top having two participnats in the age group of 18-25 and 26-35 who have high betweeness centrality
+
+* There are 11 groups of networks all of whom mutually network with each other having a size of 4 participants all having the same betweenness centrality
+
+* There are 6 groups of triads who network together having the same betweenness centrality
+
+* There are two participants with high betweeness centrality (one from the age group of 36-45 and one in the age group of 45-55 who are mutual friends of two other group)
+
+* There are many pairs of participants who meet frequently and some participants who do not at all
+
+### Edge Btweeness centrality with education Level
+
+```{r}
+g <- social_graph %>%
+  mutate(community = as.factor(group_edge_betweenness(weights = Weight, directed = TRUE))) %>%
+  ggraph() + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 1)) +
+  geom_node_point(aes(colour = educationLevel))  
+g + theme_graph()
+```
+
+### Edge Btweeness centrality with Interest Groups
+
+```{r}
+g <- social_graph %>%
+  mutate(community = as.factor(group_edge_betweenness(weights = Weight, directed = TRUE))) %>%
+  ggraph() + 
+  geom_edge_link(aes(width=Weight), 
+                 alpha=0.2) +
+  scale_edge_width(range = c(0.1, 1)) +
+  geom_node_point(aes(colour = interestGroup))  
+g + theme_graph()
+```
+## Conclusion
+
+* In the city of engagement Ohio very few groups of close frinds are observed who network frequently and they maninly comprise of the educated participants.
+
+* Large number of participants who network frequently consists of the ones who live alone
+
+* Participants network with their closest friends (whom they meet more frequently) on Tuesdays, wednesdays and thursdays and their acquaintances (whom they meet less frequently) on the rest of the days of week
